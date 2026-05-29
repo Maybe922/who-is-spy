@@ -52,7 +52,10 @@ const httpServer = createServer((req, res) => handle(req, res));
 const io = new Server(httpServer, {
   cors: {
     origin: "*"
-  }
+  },
+  transports: ["websocket"],
+  pingInterval: 10000,
+  pingTimeout: 5000
 });
 
 io.on("connection", (socket) => {

@@ -24,7 +24,8 @@ function getSocket(): Socket {
   if (!socketInstance) {
     socketInstance = io({
       path: "/socket.io",
-      transports: ["websocket", "polling"]
+      transports: ["websocket"],
+      upgrade: false
     });
   }
   return socketInstance;
