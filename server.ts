@@ -3,7 +3,6 @@ import next from "next";
 import { Server } from "socket.io";
 import {
   assignRoles,
-  applyWordPairToPlayers,
   checkWinner,
   createSpeakingOrder,
   generateRoomCode,
@@ -15,7 +14,6 @@ import {
   validateReady,
   validateStart
 } from "./lib/game";
-import { pickFromWordPairs, pickWordPair } from "./lib/words";
 import type { GameResult, Phase, Player, RoomState, Settings, WordPair } from "./lib/types";
 
 type Room = {
@@ -27,6 +25,7 @@ type Room = {
   settings: Settings;
   wordPair?: WordPair;
   customWordPairs?: WordPair[];
+  wordPairIndex?: number;
   wordPackName?: string;
   wordPackSource?: "ai" | "db";
   votes: Record<string, string>;
@@ -159,6 +158,7 @@ io.on("connection", (socket) => {
     if (normalizedPairs.length < 3) return emitError(socket.id, "至少需要 3 组有效词对");
 
     room.customWordPairs = normalizedPairs;
+    room.wordPairIndex = 0;
     room.wordPackName = sanitizeWordPackName(name);
     room.wordPackSource = source === "db" ? "db" : "ai";
     emitRoom(room);
@@ -185,7 +185,10 @@ io.on("connection", (socket) => {
     const readyError = validateReady(room.players);
     if (readyError) return emitError(socket.id, readyError);
 
-    room.wordPair = room.customWordPairs ? pickFromWordPairs(room.customWordPairs) : pickWordPair();
+    if (!room.customWordPairs || room.customWordPairs.length === 0) return emitError(socket.id, "请先选择或生成本局题库");
+
+    room.wordPairIndex = 0;
+    room.wordPair = room.customWordPairs[room.wordPairIndex];
     room.players = assignRoles(room.players, room.settings, room.wordPair);
     room.speakingOrder = createSpeakingOrder(room.players);
     room.phase = "reveal";
@@ -204,13 +207,16 @@ io.on("connection", (socket) => {
     if (room.phase !== "reveal") return emitError(socket.id, "只有看词阶段可以换词");
     if (!room.customWordPairs || room.customWordPairs.length === 0) return emitError(socket.id, "当前房间没有可换的题库");
 
-    const candidates = room.wordPair
-      ? room.customWordPairs.filter((pair) => pair.civilian !== room.wordPair?.civilian || pair.spy !== room.wordPair?.spy)
-      : room.customWordPairs;
-    if (candidates.length === 0) return emitError(socket.id, "题库里没有其他词对可以更换");
+    const nextWordPairIndex = (room.wordPairIndex ?? 0) + 1;
+    if (nextWordPairIndex >= room.customWordPairs.length) return emitError(socket.id, "这批题库已经全部换完了");
 
-    room.wordPair = pickFromWordPairs(candidates);
-    room.players = applyWordPairToPlayers(room.players, room.wordPair);
+    room.wordPairIndex = nextWordPairIndex;
+    room.wordPair = room.customWordPairs[room.wordPairIndex];
+    room.players = assignRoles(room.players, room.settings, room.wordPair);
+    room.speakingOrder = createSpeakingOrder(room.players);
+    room.votes = {};
+    room.tiedPlayerIds = [];
+    room.result = undefined;
     emitRoom(room);
     emitPrivateRoles(room);
   });
@@ -273,6 +279,44 @@ io.on("connection", (socket) => {
     if (room.hostId !== player.id) return emitError(socket.id, "只有房主可以重新开局");
     resetRoom(room);
     emitRoom(room);
+  });
+
+  socket.on("game:continue", () => {
+    const context = getRoomForSocket(socket.id);
+    if (!context) return emitError(socket.id, "你还没有加入房间");
+    const { room, player } = context;
+    if (room.hostId !== player.id) return emitError(socket.id, "只有房主可以继续游戏");
+    if (room.phase !== "result") return emitError(socket.id, "只有结算阶段可以继续游戏");
+    if (!room.customWordPairs || room.customWordPairs.length === 0) return emitError(socket.id, "当前房间没有可继续使用的题库");
+
+    const nextWordPairIndex = (room.wordPairIndex ?? 0) + 1;
+    if (nextWordPairIndex >= room.customWordPairs.length) return emitError(socket.id, "这批题库已经全部玩完了，请回到大厅重新选择题库");
+
+    const validationError = validateStart(room.players, room.settings);
+    if (validationError) return emitError(socket.id, validationError);
+
+    room.wordPairIndex = nextWordPairIndex;
+    room.wordPair = room.customWordPairs[room.wordPairIndex];
+    room.players = assignRoles(
+      room.players.filter((item) => item.connected),
+      room.settings,
+      room.wordPair
+    );
+    room.players.forEach((item) => {
+      item.isHost = item.id === room.hostId;
+    });
+    if (!room.players.some((item) => item.id === room.hostId)) {
+      const host = room.players[0];
+      room.hostId = host.id;
+      host.isHost = true;
+    }
+    room.speakingOrder = createSpeakingOrder(room.players);
+    room.phase = "reveal";
+    room.votes = {};
+    room.tiedPlayerIds = [];
+    room.result = undefined;
+    emitRoom(room);
+    emitPrivateRoles(room);
   });
 
   socket.on("disconnect", () => {
@@ -379,6 +423,7 @@ function resolveVote(room: Room, eligibleTargets: string[]): void {
 function resetRoom(room: Room): void {
   room.phase = "lobby";
   room.wordPair = undefined;
+  room.wordPairIndex = 0;
   room.speakingOrder = [];
   room.votes = {};
   room.tiedPlayerIds = [];

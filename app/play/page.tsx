@@ -281,15 +281,13 @@ export default function Home() {
 
       {error ? <p className="mb-4 rounded-md bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p> : null}
 
-      <section className="grid gap-4 lg:grid-cols-[1fr_330px]">
-        <div className="rounded-lg bg-white p-5 shadow-soft">
+      <section className={`grid gap-4 ${room.phase === "lobby" ? "lg:grid-cols-[330px_1fr]" : "lg:grid-cols-[1fr_330px]"}`}>
+        <div className={`${room.phase === "lobby" ? "order-2" : "order-1"} rounded-lg bg-white p-5 shadow-soft`}>
           {room.phase === "lobby" ? (
             <Lobby
               room={room}
               isHost={isHost}
-              meReady={Boolean(me?.ready)}
               allReady={allReady}
-              onReadyChange={(ready) => socket?.emit("room:setReady", { ready })}
               onSettingChange={updateSetting}
               onWordPairsSelected={(name, pairs, source) => socket?.emit("room:setWordPairs", { name, pairs, source })}
               onStart={() => socket?.emit("game:start")}
@@ -330,11 +328,16 @@ export default function Home() {
           ) : null}
 
           {room.phase === "result" ? (
-            <Result room={room} isHost={isHost} onRestart={() => socket?.emit("game:restart")} />
+            <Result
+              room={room}
+              isHost={isHost}
+              onContinue={() => socket?.emit("game:continue")}
+              onRestart={() => socket?.emit("game:restart")}
+            />
           ) : null}
         </div>
 
-        <aside className="rounded-lg bg-white p-5 shadow-soft">
+        <aside className={`${room.phase === "lobby" ? "order-1" : "order-2"} rounded-lg bg-white p-5 shadow-soft`}>
           <div className="flex items-center justify-between gap-3">
             <h2 className="text-lg font-bold">玩家</h2>
             <span className="rounded-full bg-jade/10 px-3 py-1 text-sm font-bold text-jade">
@@ -348,7 +351,13 @@ export default function Home() {
               <div
                 key={player.id}
                 className={`flex items-center justify-between rounded-md border px-3 py-2 ${
-                  room.phase !== "lobby" && !player.alive ? "border-ink/10 bg-ink/5 text-ink/45" : "border-ink/10"
+                  room.phase === "lobby"
+                    ? player.ready
+                      ? "border-jade/20 bg-jade/10"
+                      : "border-coral/20 bg-coral/10"
+                    : !player.alive
+                      ? "border-ink/10 bg-ink/5 text-ink/45"
+                      : "border-ink/10"
                 }`}
               >
                 <div className="min-w-0">
@@ -370,8 +379,18 @@ export default function Home() {
               </div>
             ))}
           </div>
+          {room.phase === "lobby" ? (
+            <button
+              className={`mt-5 h-11 w-full rounded-md text-sm font-semibold transition ${
+                me?.ready ? "border border-coral bg-white text-coral" : "bg-saffron text-ink"
+              }`}
+              onClick={() => socket?.emit("room:setReady", { ready: !me?.ready })}
+            >
+              {me?.ready ? "取消准备" : "我准备好了"}
+            </button>
+          ) : null}
           <button
-            className="mt-5 h-11 w-full rounded-md border border-ink/15 text-sm font-semibold"
+            className="mt-3 h-11 w-full rounded-md border border-ink/15 text-sm font-semibold"
             onClick={() => socket?.emit("room:leave")}
           >
             离开房间
@@ -395,18 +414,14 @@ export default function Home() {
 function Lobby({
   room,
   isHost,
-  meReady,
   allReady,
-  onReadyChange,
   onSettingChange,
   onWordPairsSelected,
   onStart
 }: {
   room: RoomState;
   isHost: boolean;
-  meReady: boolean;
   allReady: boolean;
-  onReadyChange: (ready: boolean) => void;
   onSettingChange: {
     (key: "spyCount" | "blankCount", value: string): void;
     (key: "showIdentity", value: boolean): void;
@@ -419,6 +434,7 @@ function Lobby({
   const [generating, setGenerating] = useState(false);
   const [randomizing, setRandomizing] = useState(false);
   const [generateError, setGenerateError] = useState("");
+  const hasWordPack = Boolean(room.wordPack);
 
   async function generateWordPairs() {
     const trimmedTheme = theme.trim();
@@ -493,14 +509,6 @@ function Lobby({
     <div>
       <h2 className="text-2xl font-bold">等待玩家加入</h2>
       <p className="mt-2 text-sm text-ink/58">把房间号发给朋友。至少 4 人，卧底加白板数量必须小于平民数量。</p>
-      <button
-        className={`mt-6 h-12 w-full rounded-md font-semibold transition ${
-          meReady ? "border border-coral bg-white text-coral" : "bg-saffron text-ink"
-        }`}
-        onClick={() => onReadyChange(!meReady)}
-      >
-        {meReady ? "取消准备" : "我准备好了"}
-      </button>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <NumberField
           label="卧底数量"
@@ -533,7 +541,7 @@ function Lobby({
           <div>
             <p className="font-semibold">题库主题</p>
             <p className="mt-1 text-sm text-ink/50">
-              当前：{room.wordPack?.name ?? "经典默认题库"} · {room.wordPack?.pairCount ?? 20} 组词对
+              当前：{room.wordPack ? `${room.wordPack.name} · ${room.wordPack.pairCount} 组词对` : "未选择题库"}
             </p>
           </div>
           <Link className="text-sm font-semibold text-jade" href="/settings">
@@ -578,10 +586,10 @@ function Lobby({
       {isHost ? (
         <button
           className="mt-6 h-12 w-full rounded-md bg-jade font-semibold text-white disabled:cursor-not-allowed disabled:bg-ink/25"
-          disabled={!allReady}
+          disabled={!allReady || !hasWordPack}
           onClick={onStart}
         >
-          {allReady ? "开始游戏" : "等待所有玩家准备"}
+          {!hasWordPack ? "请先选择题库" : allReady ? "开始游戏" : "等待所有玩家准备"}
         </button>
       ) : (
         <p className="mt-6 rounded-md bg-ink/5 px-3 py-3 text-sm text-ink/60">准备后等待房主开始游戏。</p>
@@ -748,7 +756,17 @@ function PrivateWordReminder({ privateRole }: { privateRole: PrivateRole | null 
   );
 }
 
-function Result({ room, isHost, onRestart }: { room: RoomState; isHost: boolean; onRestart: () => void }) {
+function Result({
+  room,
+  isHost,
+  onContinue,
+  onRestart
+}: {
+  room: RoomState;
+  isHost: boolean;
+  onContinue: () => void;
+  onRestart: () => void;
+}) {
   return (
     <div>
       <h2 className="text-2xl font-bold">游戏结束</h2>
@@ -767,9 +785,14 @@ function Result({ room, isHost, onRestart }: { room: RoomState; isHost: boolean;
         ))}
       </div>
       {isHost ? (
-        <button className="mt-6 h-12 w-full rounded-md bg-jade font-semibold text-white" onClick={onRestart}>
-          回到大厅
-        </button>
+        <div className="mt-6 grid gap-3">
+          <button className="h-12 w-full rounded-md bg-jade font-semibold text-white" onClick={onContinue}>
+            继续玩
+          </button>
+          <button className="h-12 w-full rounded-md border border-ink/15 font-semibold" onClick={onRestart}>
+            回到大厅
+          </button>
+        </div>
       ) : null}
     </div>
   );
