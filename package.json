@@ -1,0 +1,43 @@
+{
+  "name": "who-is-spy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "next build",
+    "start": "NODE_ENV=production tsx server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "admin:create": "tsx scripts/create-admin.ts",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.99.0",
+    "@prisma/client": "^6.19.0",
+    "next": "15.5.15",
+    "openai": "^6.39.0",
+    "react": "19.2.5",
+    "react-dom": "19.2.5",
+    "socket.io": "4.8.3",
+    "socket.io-client": "4.8.3",
+    "tsx": "4.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.2",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "autoprefixer": "10.4.23",
+    "eslint": "9.39.2",
+    "eslint-config-next": "15.5.15",
+    "postcss": "8.5.6",
+    "prisma": "^6.19.0",
+    "tailwindcss": "3.4.18",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9"
+  }
+}
