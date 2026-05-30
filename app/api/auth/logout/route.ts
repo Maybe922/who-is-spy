@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { hashSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth-core";
+import { hashSessionToken, SESSION_COOKIE_NAME, SESSION_COOKIE_SECURE } from "@/lib/auth-core";
 
 export const runtime = "nodejs";
 
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   response.cookies.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: SESSION_COOKIE_SECURE,
     path: "/",
     maxAge: 0
   });

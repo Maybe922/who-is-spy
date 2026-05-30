@@ -9,6 +9,14 @@ const SESSION_TOKEN_BYTES = 32;
 export const SESSION_COOKIE_NAME = "who_is_spy_session";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
+// Secure cookies require HTTPS. Over plain HTTP (e.g. IP:port access) the browser
+// drops them, breaking login. Default to the production behaviour, but allow an
+// explicit COOKIE_SECURE override for HTTP-only deployments.
+export const SESSION_COOKIE_SECURE =
+  process.env.COOKIE_SECURE !== undefined
+    ? process.env.COOKIE_SECURE === "true"
+    : process.env.NODE_ENV === "production";
+
 export function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
 }

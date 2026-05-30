@@ -5,6 +5,7 @@ import {
   hashSessionToken,
   normalizeUsername,
   SESSION_COOKIE_NAME,
+  SESSION_COOKIE_SECURE,
   SESSION_MAX_AGE_SECONDS,
   validatePassword,
   validateUsername,
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
   response.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: SESSION_COOKIE_SECURE,
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
     expires: expiresAt
