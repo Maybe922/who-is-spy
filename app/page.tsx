@@ -14,9 +14,13 @@ export default async function HomePage() {
         </div>
         {user ? (
           <div className="flex items-center gap-3">
-            <span className="text-sm text-ink/60">
-              {user.displayName || user.username}
-            </span>
+            <span className="text-sm text-ink/60">{user.displayName || user.username}</span>
+            <Link
+              href="/profile"
+              className="h-9 rounded-md border border-ink/15 px-4 text-sm font-semibold leading-9 transition hover:border-ink/30"
+            >
+              个人设置
+            </Link>
             {user.role === "ADMIN" ? (
               <Link
                 href="/admin/word-packs"

@@ -68,7 +68,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder={mode === "register" ? "至少 8 位" : undefined}
+          placeholder={undefined}
         />
       </label>
 

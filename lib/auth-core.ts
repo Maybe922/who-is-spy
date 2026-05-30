@@ -29,7 +29,7 @@ export function validateUsername(username: string): string | null {
 }
 
 export function validatePassword(password: string): string | null {
-  if (password.length < 8) return "密码至少需要 8 位";
+  if (password.length === 0) return "密码不能为空";
   if (password.length > 128) return "密码不能超过 128 位";
   return null;
 }

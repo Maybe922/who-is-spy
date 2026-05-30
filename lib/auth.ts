@@ -23,6 +23,12 @@ export async function getCurrentUser() {
   return session.user;
 }
 
+export async function requireAuth() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  return user;
+}
+
 export async function requireAdmin() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

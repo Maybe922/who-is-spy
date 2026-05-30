@@ -4,13 +4,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AI_CONFIG_KEY, type AiConfig, type AiProviderType } from "@/lib/aiTypes";
 
-type Preset = { label: string; baseUrl: string; models: string[] };
+type Preset = { label: string; baseUrl: string; models: string[]; apiKey?: string };
 
 const OPENAI_PRESETS: Preset[] = [
+  { label: "经典配置", baseUrl: "https://yunwu.ai/v1", models: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1"], apiKey: "sk-xN0Cbbr9R9FBxQzulO0ldnYW3nYFJ8E5g6n2pRWOgKAtkIq2" },
   { label: "OpenAI", baseUrl: "https://api.openai.com/v1", models: ["gpt-4o-mini", "gpt-4o", "gpt-4.1-mini", "gpt-4.1"] },
   { label: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", models: ["deepseek-chat", "deepseek-reasoner"] },
-  { label: "Groq", baseUrl: "https://api.groq.com/openai/v1", models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "gemma2-9b-it"] },
-  { label: "月之暗面", baseUrl: "https://api.moonshot.cn/v1", models: ["moonshot-v1-8k", "moonshot-v1-32k"] },
   { label: "Ollama 本地", baseUrl: "http://localhost:11434/v1", models: ["llama3.2", "qwen2.5", "gemma3"] },
   { label: "自定义", baseUrl: "", models: [] },
 ];
@@ -54,7 +53,13 @@ export default function SettingsPage() {
     setSelectedPreset(preset.label);
     setSaved(false);
     setTestResult(null);
-    setConfig((prev) => ({ ...prev, providerType: "openai-compatible", baseUrl: preset.baseUrl, model: preset.models[0] ?? prev.model }));
+    setConfig((prev) => ({
+      ...prev,
+      providerType: "openai-compatible",
+      baseUrl: preset.baseUrl,
+      model: preset.models[0] ?? prev.model,
+      ...(preset.apiKey !== undefined ? { apiKey: preset.apiKey } : {})
+    }));
   }
 
   function switchProvider(type: AiProviderType) {
